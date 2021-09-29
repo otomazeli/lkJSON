@@ -5,7 +5,7 @@ Copyright (c) 2006,2007,2008,2009 Leonid Koninin leon_kon@users.sourceforge.net
 
 ### History Changes
 
-
+```
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
 *     * Redistributions of source code must retain the above copyright
@@ -27,6 +27,7 @@ Copyright (c) 2006,2007,2008,2009 Leonid Koninin leon_kon@users.sourceforge.net
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
 
 ####  changes:
 
