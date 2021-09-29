@@ -1,12 +1,11 @@
-# lkJSON
-Json Library for Delphi 6+ Originally from Leonid Koninin
+## lkJSON - Json Library for Delphi 6+ Originally from Leonid Koninin
 Copyright (c) 2021 Maintained by Odimar Tomazeli otomazeli@gmx.com
 Copyright (c) 2006,2007,2008,2009 Leonid Koninin leon_kon@users.sourceforge.net
 
 
-# History Changes
+### History Changes
 
-*
+
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
 *     * Redistributions of source code must retain the above copyright
@@ -17,7 +16,7 @@ Copyright (c) 2006,2007,2008,2009 Leonid Koninin leon_kon@users.sourceforge.net
 *     * Neither the name of the <organization> nor the
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
-*
+
 * THIS SOFTWARE IS PROVIDED BY Leonid Koninin ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -29,8 +28,9 @@ Copyright (c) 2006,2007,2008,2009 Leonid Koninin leon_kon@users.sourceforge.net
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-  changes:
+####  changes:
 
+```
   v1.07 06/11/2009 * fixed a bug in js_string - thanks to Andrew G. Khodotov
                    * fixed error with double-slashes - thanks to anonymous user
                    * fixed a BOM bug in parser, thanks to jasper_dale
@@ -137,3 +137,4 @@ Copyright (c) 2006,2007,2008,2009 Leonid Koninin leon_kon@users.sourceforge.net
   v0.92 03/02/2007 + add some fix to TlkJSON.ParseText to fix bug with parsing
                      objects - object methods not always added properly
                      to hash array (thanx to Chris Matheson)
+```                     
