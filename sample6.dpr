@@ -15,7 +15,7 @@ var
   js,jo,o,s,x:TlkJSONobject;
   ws: TlkJSONstring;
   i: Integer;
-  dt:TlkJsonDateTime;
+  dt,di:TDateTime;
 begin
   js := TlkJSONobject.Create;
   jo := TlkJSONobject.Create;
@@ -97,14 +97,14 @@ begin
 
   jo := vJsonObj.Field['myObj'] as TlkJsonObject;
   o := jo.Field['mystats'] as TlkJsonObject;
-  ws := TlkJsonDateTime(o.Field['birthdate']);
-  si := ws.Value;
+  di := o.getDateTime('birthdate');
+  si := DateTimeToStr(di);
   writeln(si);
 
   jo := vJsonObj.Field['myObj'] as TlkJsonObject;
   o := jo.Field['mystats'] as TlkJsonObject;
-  dt := o.Field['today'] as TlkJsonDateTime;
-  si := dt.Value;
+  dt := o.getDateTime('today'); //Field['today'] as TlkJsonDateTime;
+  si := DateTimeToStr(dt);
   writeln(si);
 
 //  dt := vJsonObj.Field['myObj'].Field['mystats'].Field['today'] as TlkJsonDateTime;
@@ -114,7 +114,6 @@ begin
 //  str :=  dt.Value;
 //  writeln(str);
   readln;
-  js.Free;
   vJsonStr := TlkJSON.GenerateText(vJsonObj);
   writeln(vJsonStr);
   readln;
