@@ -1,5 +1,5 @@
 {
-  LkJSON v1.07
+  LkJSON v1.08
 
   06 november 2009
 
