@@ -167,6 +167,7 @@ interface
 
 uses windows,
   SysUtils,
+  DateUtils,
 {$IFNDEF KOL}
   classes,
 {$ELSE}
@@ -174,9 +175,21 @@ uses windows,
 {$ENDIF}
   variants;
 
+const
+  { System.DateUtils }
+  SInvalidDateString = 'Invalid date string: %s';
+  SInvalidTimeString = 'Invalid time string: %s';
+  SInvalidOffsetString = 'Invalid time Offset string: %s';
+
+
 type
   TlkJSONtypes = (jsBase, jsNumber, jsString, jsBoolean, jsNull,
-    jsList, jsObject);
+    jsList, jsObject, jsDateTime);
+
+  DTErrorCode = (InvDate, InvTime, InvOffset);
+
+  ELocalTimeInvalid = class(Exception);
+  EDateTimeException = class(Exception);
 
 {$IFDEF DOTNET}
 
@@ -233,6 +246,31 @@ type
     class function SelfTypeName: string; override;
   end;
 
+  TlkJsonDateTime = class(TlkJSONbase)
+  protected
+    FValue: TDateTime;
+    function GetValue: Variant; override;
+    procedure SetValue(const AValue: Variant); override;
+    class function GetNextDTComp(var P: PChar; const PEnd: PChar;  ErrorCode: DTErrorCode;
+      const AValue: string; NumDigits: Integer): string; overload;
+    class function GetNextDTComp(var P: PChar; const PEnd: PChar; const DefValue: string; Prefix: Char;
+      IsOptional: Boolean; IsDate: Boolean; ErrorCode: DTErrorCode; const AValue: string; NumDigits: Integer): string; overload;
+    class procedure DecodeISO8601Date(const DateString: string; var AYear, AMonth, ADay: Word);
+    class procedure DecodeISO8601Time(const TimeString: string; var AHour, AMinute, ASecond, AMillisecond: Word;
+      var AHourOffset, AMinuteOffset: Integer);
+    class function AdjustDateTime(const ADate: TDateTime; AHourOffset, AMinuteOffset:Integer; IsUTC: Boolean = True): TDateTime;
+    class procedure DTFmtError(AErrorCode: DTErrorCode; const AValue: string);
+
+  public
+    procedure AfterConstruction; override;
+    class function DateToISO8601(const ADate: TDateTime; AInputIsUTC: Boolean = true): string;
+    class function ISO8601ToDate(const AISODate: string; AReturnUTC: Boolean = True): TDateTime;
+    class function TryISO8601ToDate(const AISODate: string; out Value: TDateTime; AReturnUTC: Boolean = True): Boolean;
+    class function Generate(const dtValue: TDateTime = 0.5): TlkJsonDateTime;
+    class function SelfType: TlkJSONtypes; override;
+    class function SelfTypeName: string; override;
+  end;
+
   TlkJSONboolean = class(TlkJSONbase)
   protected
     FValue: Boolean;
@@ -283,6 +321,7 @@ type
     function getString(idx: Integer): string; virtual;
     function getWideString(idx: Integer): WideString; virtual;
     function getDouble(idx: Integer): Double; virtual;
+    function getDateTime(idx: Integer): TDateTime; virtual;
     function getBoolean(idx: Integer): Boolean; virtual;
   end;
 
@@ -293,6 +332,7 @@ type
 
     function Add(aboolean: Boolean): Integer; overload;
     function Add(nmb: double): Integer; overload;
+    function Add(dt: TDateTime): Integer; overload;
     function Add(s: string): Integer; overload;
     function Add(const ws: WideString): Integer; overload;
     function Add(inmb: Integer): Integer; overload;
@@ -423,6 +463,7 @@ type
 
     function Add(const aname: WideString; aboolean: Boolean): Integer; overload;
     function Add(const aname: WideString; nmb: double): Integer; overload;
+    function Add(const aname: WideString; dt: TDateTime): Integer; overload;
     function Add(const aname: WideString; s: string): Integer; overload;
     function Add(const aname: WideString; const ws: WideString): Integer;
       overload;
@@ -446,6 +487,7 @@ type
     property NameOf[idx: Integer]: WideString read GetNameOf;
 
     function getDouble(idx: Integer): Double; overload; override;
+    function getDateTime(idx: Integer): TDateTime; overload; override;
     function getInt(idx: Integer): Integer; overload; override;
     function getString(idx: Integer): string; overload; override;
     function getWideString(idx: Integer): WideString; overload; override;
@@ -453,6 +495,8 @@ type
 
     function {$ifdef TCB_EXT}getDoubleFromName{$else}getDouble{$endif}
       (nm: string): Double; overload;
+    function {$ifdef TCB_EXT}getDateTimeFromName{$else}getDateTime{$endif}
+      (nm: string): TDateTime; overload;
     function {$ifdef TCB_EXT}getIntFromName{$else}getInt{$endif}
       (nm: string): Integer; overload;
     function {$ifdef TCB_EXT}getStringFromName{$else}getString{$endif}
@@ -710,6 +754,353 @@ begin
   FValue := VarToWideStr(AValue);
 end;
 
+{ TlkJsonDateTime }
+
+procedure TlkJsonDateTime.AfterConstruction;
+begin
+  inherited;
+  FValue := 0.5;
+end;
+
+class function TlkJsonDateTime.Generate(const dtValue: TDateTime = 0.5): TlkJsonDateTime;
+begin
+  result := TlkJsonDateTime.Create;
+  result.FValue := dtValue;
+end;
+
+function TlkJsonDateTime.GetValue: Variant;
+begin
+  result := FValue;
+end;
+
+class function TlkJsonDateTime.SelfType: TlkJSONtypes;
+begin
+  result := jsDateTime;
+end;
+
+class function TlkJsonDateTime.SelfTypeName: string;
+begin
+  result := 'jsDateTime';
+end;
+
+procedure TlkJsonDateTime.SetValue(const AValue: Variant);
+begin
+  FValue := VarToDateTime(AValue);
+end;
+
+class function TlkJsonDateTime.DateToISO8601(const ADate: TDateTime; AInputIsUTC: Boolean = true): string;
+const
+  SDateFormat: string = '%.4d-%.2d-%.2dT%.2d:%.2d:%.2d.%.3dZ'; { Do not localize }
+  SOffsetFormat: string = '%s%s%.02d:%.02d'; { Do not localize }
+  Neg: array[Boolean] of string = ('+', '-'); { Do not localize }
+var
+  y, mo, d, h, mi, se, ms: Word;
+  Bias: Integer;
+begin
+  DecodeDate(ADate, y, mo, d);
+  DecodeTime(ADate, h, mi, se, ms);
+  Result := Format(SDateFormat, [y, mo, d, h, mi, se, ms]);
+(*  if not AInputIsUTC then
+  begin
+    TimeZone := TTimeZone.Local;
+    Bias := Trunc(TimeZone.GetUTCOffset(ADate).Negate.TotalMinutes);
+    if Bias <> 0 then
+    begin
+      // Remove the Z, in order to add the UTC_Offset to the string.
+      SetLength(Result, Result.Length - 1);
+      Result := Format(SOffsetFormat, [Result, Neg[Bias > 0], Abs(Bias) div MinsPerHour,
+        Abs(Bias) mod MinsPerHour]);
+    end
+  end;
+  *)
+end;
+
+class function TlkJsonDateTime.GetNextDTComp(var P: PChar; const PEnd: PChar;  ErrorCode: DTErrorCode; const AValue: string; NumDigits: Integer): string;
+var
+  LDigits: Integer;
+begin
+  LDigits := 0;
+  Result := '';
+  while ((P <= PEnd) and (P^ >= '0') and (P^ <= '9') and (LDigits < NumDigits)) do
+  begin
+    Result := Result + P^;
+    Inc(P);
+    Inc(LDigits);
+  end;
+  if Result = '' then
+    DTFmtError(ErrorCode, AValue);
+end;
+
+class function TlkJsonDateTime.GetNextDTComp(var P: PChar; const PEnd: PChar; const DefValue: string; Prefix: Char;
+  IsOptional: Boolean; IsDate: Boolean; ErrorCode: DTErrorCode; const AValue: string; NumDigits: Integer): string;
+const
+  SEmptySeparator: Char = ' ';
+var
+  LDigits: Integer;
+begin
+  if (P >= PEnd) then
+  begin
+    Result := DefValue;
+    Exit;
+  end;
+
+  Result := '';
+
+  if (Prefix <> SEmptySeparator) and (IsDate or not (Byte(P^) in [Ord('+'), Ord('-')])) then
+  begin
+    if P^ <> Prefix then
+      DTFmtError(ErrorCode, AValue);
+    Inc(P);
+  end;
+
+  LDigits := 0;
+  while ((P <= PEnd) and (P^ >= '0') and (P^ <= '9') and (LDigits < NumDigits)) do
+  begin
+    Result := Result + P^;
+    Inc(P);
+    Inc(LDigits);
+  end;
+
+  if Result = '' then
+  begin
+    if IsOptional then
+      Result := DefValue
+    else
+      DTFmtError(ErrorCode, AValue);
+  end;
+end;
+
+class procedure TlkJsonDateTime.DecodeISO8601Date(const DateString: string; var AYear, AMonth, ADay: Word);
+
+  procedure ConvertDate(const AValue: string);
+  const
+    SDateSeparator: Char = '-';
+    SEmptySeparator: Char = ' ';
+  var
+    P, PE: PChar;
+  begin
+    P := PChar(AValue);
+    PE := P + (Length(AValue) - 1);
+    if Pos(SDateSeparator,AValue) <= 0 then
+    begin
+      AYear := StrToInt(GetNextDTComp(P, PE, InvDate, AValue, 4));
+      AMonth := StrToInt(GetNextDTComp(P, PE, '00', SEmptySeparator, True, True, InvDate, AValue, 2));
+      ADay := StrToInt(GetNextDTComp(P, PE, '00', SEmptySeparator, True, True, InvDate, AValue, 2));
+    end
+    else
+    begin
+      AYear := StrToInt(GetNextDTComp(P, PE, InvDate, AValue, 4));
+      AMonth := StrToInt(GetNextDTComp(P, PE, '00', SDateSeparator, True, True, InvDate, AValue, 2));
+      ADay := StrToInt(GetNextDTComp(P, PE, '00', SDateSeparator, True, True, InvDate, AValue, 2));
+    end;
+  end;
+
+var
+  TempValue: string;
+  LNegativeDate: Boolean;
+begin
+  AYear := 0;
+  AMonth := 0;
+  ADay := 1;
+
+  LNegativeDate := (DateString <> '') and (DateString[1] = '-');
+  if LNegativeDate then
+    TempValue := DateString[1]
+  else
+    TempValue := DateString;
+  if Length(TempValue) < 4 then
+    raise EDateTimeException.CreateFmt(SInvalidDateString, [TempValue]);
+  ConvertDate(TempValue);
+end;
+
+
+class procedure TlkJsonDateTime.DecodeISO8601Time(const TimeString: string; var AHour, AMinute, ASecond, AMillisecond: Word;
+  var AHourOffset, AMinuteOffset: Integer);
+const
+  SEmptySeparator: Char = ' ';
+  STimeSeparator: Char = ':';
+  SMilSecSeparator: Char = '.';
+var
+  LFractionalSecondString: string;
+  P, PE: PChar;
+  LOffsetSign: Char;
+  LFraction: Double;
+begin
+  AHour := 0;
+  AMinute := 0;
+  ASecond := 0;
+  AMillisecond := 0;
+  AHourOffset := 0;
+  AMinuteOffset := 0;
+  if TimeString <> '' then
+  begin
+    P := PChar(TimeString);
+    PE := P + (Length(TimeString) - 1);
+    if Pos(STimeSeparator,TimeString) <= 0 then
+    begin
+      AHour := StrToInt(GetNextDTComp(P, PE, InvTime, TimeString, 2));
+      AMinute := StrToInt(GetNextDTComp(P, PE, '00', SEmptySeparator, False, False, InvTime, TimeString, 2));
+      ASecond := StrToInt(GetNextDTComp(P, PE, '00', SEmptySeparator, True, False, InvTime, TimeString, 2));
+      LFractionalSecondString := GetNextDTComp(P, PE, '0', SMilSecSeparator, True, False, InvTime, TimeString, 18);
+      if LFractionalSecondString <> '0' then
+      begin
+        LFractionalSecondString := DecimalSeparator + LFractionalSecondString;
+        LFraction := StrToFloat(LFractionalSecondString);
+        AMillisecond := Round(1000 * LFraction);
+      end;
+    end
+    else
+    begin
+      AHour := StrToInt(GetNextDTComp(P, PE, InvTime, TimeString, 2));
+      AMinute := StrToInt(GetNextDTComp(P, PE, '00', STimeSeparator, False, False, InvTime, TimeString, 2));
+      ASecond := StrToInt(GetNextDTComp(P, PE, '00', STimeSeparator, True, False, InvTime, TimeString, 2));
+      LFractionalSecondString := GetNextDTComp(P, PE, '0', SMilSecSeparator, True, False, InvTime, TimeString, 18);
+      if LFractionalSecondString <> '0' then
+      begin
+        LFractionalSecondString := DecimalSeparator + LFractionalSecondString;
+        LFraction := StrToFloat(LFractionalSecondString);
+        AMillisecond := Round(1000 * LFraction);
+      end;
+    end;
+
+    if (P^ = '-') or (P^ = '+') then
+    begin
+      LOffsetSign := P^;
+      Inc(P);
+      if not ((P^ >= '0') and (P^ <= '9')) then
+        DTFmtError(InvTime, TimeString);
+      AHourOffset := StrToInt(LOffsetSign + GetNextDTComp(P, PE, InvOffset, TimeString, 2));
+      if P^ = ':' then
+        AMinuteOffset := StrToInt(LOffsetSign + GetNextDTComp(P, PE, '00', STimeSeparator, True, True, InvOffset, TimeString, 2))
+      else
+        AMinuteOffset := StrToInt(LOffsetSign + GetNextDTComp(P, PE, '00', SEmptySeparator, True, True, InvOffset, TimeString, 2));
+     end;
+  end;
+end;
+
+class function TlkJsonDateTime.AdjustDateTime(const ADate: TDateTime; AHourOffset, AMinuteOffset:Integer; IsUTC: Boolean = True): TDateTime;
+var
+  AdjustDT: TDateTime;
+//  BiasLocal: Int64;
+//  BiasTime: Integer;
+//  BiasHour: Integer;
+//  BiasMins: Integer;
+//  BiasDT: TDateTime;
+begin
+  Result := ADate;
+  //if IsUTC then
+  //begin
+    { If we have an offset, adjust time to go back to UTC }
+    if (AHourOffset <> 0) or (AMinuteOffset <> 0) then
+    begin
+      AdjustDT := EncodeTime(Abs(AHourOffset), Abs(AMinuteOffset), 0, 0);
+      if ((AHourOffset * MinsPerHour) + AMinuteOffset) > 0 then
+        Result := Result - AdjustDT
+      else
+        Result := Result + AdjustDT;
+    end;
+  (*end
+  else
+  begin
+    { Now adjust TDateTime based on any offsets we have and the local bias }
+    { There are two possibilities:
+        a. The time we have has the same offset as the local bias - nothing to do!!
+        b. The time we have and the local bias are different - requiring adjustments }
+    TZ := TTimeZone.Local;
+    BiasLocal := Trunc(TZ.GetUTCOffset(Result).Negate.TotalMinutes);
+    BiasTime  := (AHourOffset * MinsPerHour) + AMinuteOffset;
+    if (BiasLocal + BiasTime) = 0 then
+      Exit;
+
+    { Here we adjust the Local Bias to make it relative to the Time's own offset
+      instead of being relative to GMT }
+    BiasLocal := BiasLocal + BiasTime;
+    BiasHour := Abs(BiasLocal) div MinsPerHour;
+    BiasMins := Abs(BiasLocal) mod MinsPerHour;
+    BiasDT := EncodeTime(BiasHour, BiasMins, 0, 0);
+    if (BiasLocal > 0) then
+      Result := Result - BiasDT
+    else
+      Result := Result + BiasDT;
+  end;
+  *)
+end;
+
+class function TlkJsonDateTime.ISO8601ToDate(const AISODate: string; AReturnUTC: Boolean = True): TDateTime;
+const
+  STimePrefix: Char = 'T';
+var
+  TimeString, DateString: string;
+  TimePosition: Integer;
+  Year, Month, Day, Hour, Minute, Second, Millisecond: Word;
+  HourOffset, MinuteOffset: Integer;
+  AddDay, AddMinute, AddSecond: Boolean;
+begin
+  HourOffset := 0;
+  MinuteOffset := 0;
+  TimePosition := Pos(STimePrefix,AISODate); //.IndexOf(STimePrefix);
+  if TimePosition >= 0 then
+  begin
+    DateString := Copy(AISODate,0, TimePosition);
+    TimeString := Copy(AISODate,TimePosition + 1, Length(AISODate));
+  end
+  else
+  begin
+    Hour := 0;
+    Minute := 0;
+    Second := 0;
+    Millisecond := 0;
+    HourOffset := 0;
+    MinuteOffset := 0;
+    DateString := AISODate;
+    TimeString := '';
+  end;
+  DecodeISO8601Date(DateString, Year, Month, Day);
+  DecodeISO8601Time(TimeString, Hour, Minute, Second, Millisecond, HourOffset, MinuteOffset);
+
+  AddDay := Hour = 24;
+  if AddDay then
+    Hour := 0;
+
+  AddMinute := Second = 60;
+  if AddMinute then
+    Second := 0;
+
+  AddSecond := Millisecond = 1000;
+  if AddSecond then
+    Millisecond := 0;
+
+  Result := EncodeDateTime(Year, Month, Day, Hour, Minute, Second, Millisecond);
+
+  if AddDay then
+    Result := IncDay(Result);
+  if AddMinute then
+    Result := IncMinute(Result);
+  if AddSecond then
+    Result := IncSecond(Result);
+
+  Result := AdjustDateTime(Result, HourOffset, MinuteOffset, AReturnUTC);
+end;
+
+class function TlkJsonDateTime.TryISO8601ToDate(const AISODate: string; out Value: TDateTime; AReturnUTC: Boolean = True): Boolean;
+begin
+  Result := False;
+  try
+    Value := ISO8601ToDate(AISODate, AReturnUTC);
+    Result := True
+  except
+
+  end;
+end;
+
+class procedure TlkJsonDateTime.DTFmtError(AErrorCode: DTErrorCode; const AValue: string);
+const
+  Errors: array[DTErrorCode] of string = (SInvalidDateString, SInvalidTimeString, SInvalidOffsetString);
+begin
+  raise EDateTimeException.CreateFmt(Errors[AErrorCode], [AValue]);
+end;
+
+
 { TlkJSONboolean }
 
 procedure TlkJSONboolean.AfterConstruction;
@@ -902,6 +1293,16 @@ begin
   else result := jn.Value;
 end;
 
+function TlkJSONcustomlist.getDateTime(idx: Integer): TDateTime;
+var
+  jn: TlkJsonDateTime;
+begin
+  jn := Child[idx] as TlkJsonDateTime;
+  if not assigned(jn) then result := 0.5
+  else result := jn.Value;
+end;
+
+
 function TlkJSONcustomlist.getInt(idx: Integer): Integer;
 var
   jn: TlkJSONnumber;
@@ -983,6 +1384,12 @@ begin
   Result := self.Add(TlkJSONnumber.Generate(nmb));
 end;
 
+function TlkJSONlist.Add(dt: TDateTime): Integer;
+begin
+  Result := self.Add(TlkJsonDateTime.Generate(dt));
+end;
+
+
 function TlkJSONlist.Add(aboolean: Boolean): Integer;
 begin
   Result := self.Add(TlkJSONboolean.Generate(aboolean));
@@ -1055,7 +1462,7 @@ end;
 
 procedure TlkJSONobject.Delete(idx: Integer);
 var
-  i,j,k:cardinal;
+//  i,j:cardinal;
   mth: TlkJSONobjectmethod;
 begin
   if (idx >= 0) and (idx < Count) then
@@ -1163,6 +1570,12 @@ function TlkJSONobject.Add(const aname: WideString; nmb: double):
   Integer;
 begin
   Result := self.Add(aname, TlkJSONnumber.Generate(nmb));
+end;
+
+function TlkJSONobject.Add(const aname: WideString; dt: TDateTime):
+  Integer;
+begin
+  Result := self.Add(aname, TlkJsonDateTime.Generate(dt));
 end;
 
 function TlkJSONobject.Add(const aname: WideString; aboolean: Boolean):
@@ -1291,6 +1704,16 @@ begin
   else result := jn.Value;
 end;
 
+function TlkJSONobject.getDateTime(idx: Integer): TDateTime; 
+var
+  jn: TlkJsonDateTime;
+begin
+  jn := FieldByIndex[idx] as TlkJsonDateTime;
+  if not assigned(jn) then result := 0.5
+  else result := jn.Value;
+end;
+
+
 function TlkJSONobject.getInt(idx: Integer): Integer;
 var
   jn: TlkJSONnumber;
@@ -1326,6 +1749,16 @@ function TlkJSONobject.getDouble(nm: string): Double;
 begin
   result := getDouble(IndexOfName(nm));
 end;
+
+{$ifdef TCB_EXT}
+function TlkJSONobject.getDateTimeFromName(nm: string): TDateTime;
+{$else}
+function TlkJSONobject.getDateTime(nm: string): TDateTime;
+{$endif}
+begin
+  result := getDateTime(IndexOfName(nm));
+end;
+
 
 {$ifdef TCB_EXT}
 function TlkJSONobject.getIntFromName(nm: string): Integer;
@@ -1519,6 +1952,7 @@ var
     ws: string;
     i, j: Integer;
     xs: TlkJSONstring;
+    dt:TDateTime;
   begin
     if not assigned(obj) then exit;
     if obj is TlkJSONnumber then
@@ -1559,6 +1993,11 @@ var
             inc(i);
           end;
         mem_ch('"');
+      end
+    else if obj is TlkJsonDateTime then
+      begin
+        dt := TlkJsonDateTime(obj).FValue;
+        mem_write('"'+TlkJsonDateTime.DateToISO8601(dt)+'"');
       end
     else if obj is TlkJSONboolean then
       begin
@@ -1786,6 +2225,73 @@ var
     ridx := idx;
   end;
 
+ function isISO8601DateTime(ws:String):boolean;
+ begin
+   result := (pos('-',ws) > 0) and (pos('T',UpperCase(ws)) > 0) and (pos(':',ws) > 0) and (pos('.',ws) > 0) and (pos('Z',UpperCase(ws)) > 0);
+ end;
+
+
+  function js_datetime(idx: Integer; var ridx: Integer; var o:
+    TlkJSONbase): Boolean;
+  var
+    js: TlkJsonDateTime;
+    fin: Boolean;
+    ws: String;
+    i,j,widx: Integer;
+  begin
+    skip_spc(idx);
+
+    result := xe(idx) and (txt[idx] = '"');
+    if not result then exit;
+
+    inc(idx);
+    widx := idx;
+
+    fin:=false;
+    REPEAT
+      i := 0;
+      j := 0;
+      while (widx<=length(txt)) and (j=0) do
+        begin
+          if (i=0) and (txt[widx]='\') then i:=widx;
+          if (j=0) and (txt[widx]='"') then j:=widx;
+          inc(widx);
+        end;
+// incorrect string!!!
+      if j=0 then
+        begin
+          result := false;
+          exit;
+        end;
+      //check if is datetime  
+// if we have no slashed chars in string
+      if (i=0) or (j<i) then
+        begin
+          ws := copy(txt,idx,j-idx);
+          if not isISO8601DateTime(ws) then
+          begin
+             result := false;
+             exit;
+          end;
+          idx := j;
+          fin := true;
+        end
+// if i>0 and j>=i - skip slashed char
+      else
+        begin
+          widx:=i+2;
+        end;
+    UNTIL fin;
+
+    inc(idx);
+
+    js := TlkJsonDateTime.Create;
+    js.FValue := TlkJsonDateTime.ISO8601ToDate(ws);
+    add_child(o, TlkJSONbase(js));
+    ridx := idx;
+  end;
+
+
 {
 
 }
@@ -1865,6 +2371,11 @@ var
       if (i=0) or (j<i) then
         begin
           ws := copy(txt,idx,j-idx);
+          if isISO8601DateTime(ws) then
+          begin
+             result := false;
+             exit;
+          end;
           idx := j;
           fin := true;
         end
@@ -1978,7 +2489,7 @@ var
           skip_spc(idx);
           if (xe(idx)) and (txt[idx] = ',') then inc(idx);
         end;
-      skip_spc(idx);  
+      skip_spc(idx);
       result := (xe(idx)) and (txt[idx] = '}');
       if not result then exit;
       inc(idx);
@@ -2003,6 +2514,7 @@ var
     if not result then result := js_null(idx, idx, o);
     if not result then result := js_number(idx, idx, o);
     if not result then result := js_string(idx, idx, o);
+    if not result then result := js_datetime(idx, idx, o);
     if not result then result := js_list(idx, idx, o);
     if not result then result := js_object(idx, idx, o);
     if result then ridx := idx;

@@ -15,6 +15,7 @@ var
   js,jo,o,s,x:TlkJSONobject;
   ws: TlkJSONstring;
   i: Integer;
+  dt,di:TDateTime;
 begin
   js := TlkJSONobject.Create;
   jo := TlkJSONobject.Create;
@@ -31,9 +32,9 @@ begin
   s.add('id',1);
   s.add('desc','test');
   s.add('isOld',true);
-  s.add('today',now);
+  s.add('today',TlkJsonDateTime.Generate(now));
   s.add('birthdate','2019-12-10T13:49:51.141Z');
-  s.add('total',336.36);
+  s.add('total',TlkJSONnumber.Generate(336.36));
 
   o.Add('mystats',s);
  // s.free;
@@ -53,7 +54,7 @@ begin
 
   vJsonArr := TlkJsonList.Create;
   vJsonArr.Add(1);
-  vJsonArr.Add(1.5);
+  vJsonArr.Add(TlkJSONnumber.Generate(1.5));
   vJsonArr.Add(2);
   vJsonArr.Add('Odimar');
   vJsonArr.Add(False);
@@ -96,14 +97,23 @@ begin
 
   jo := vJsonObj.Field['myObj'] as TlkJsonObject;
   o := jo.Field['mystats'] as TlkJsonObject;
-  ws := o.Field['birthdate'] as TlkJSONstring;
-  si := ws.Value;
+  di := o.getDateTime('birthdate');
+  si := DateTimeToStr(di);
   writeln(si);
-  ws := vJsonObj.Field['myObj'].Field['mystats'].Field['birthdate'] as TlkJSONstring;
-  str := ws.Value;
-  writeln(str);
+
+  jo := vJsonObj.Field['myObj'] as TlkJsonObject;
+  o := jo.Field['mystats'] as TlkJsonObject;
+  dt := o.getDateTime('today'); //Field['today'] as TlkJsonDateTime;
+  si := DateTimeToStr(dt);
+  writeln(si);
+
+//  dt := vJsonObj.Field['myObj'].Field['mystats'].Field['today'] as TlkJsonDateTime;
+//  str :=  dt.Value;
+//  writeln(str);
+//  dt := vJsonObj.Field['myObj'].Field['mystats'].Field['birthdate'] as TlkJsonDateTime;
+//  str :=  dt.Value;
+//  writeln(str);
   readln;
-  js.Free;
   vJsonStr := TlkJSON.GenerateText(vJsonObj);
   writeln(vJsonStr);
   readln;
