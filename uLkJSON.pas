@@ -31,6 +31,7 @@
 
   changes:
 
+  v1.08 30/09/2021 * add support to datetime fields by introducing TlkJsonDateTime
   v1.07 06/11/2009 * fixed a bug in js_string - thanks to Andrew G. Khodotov
                    * fixed error with double-slashes - thanks to anonymous user
                    * fixed a BOM bug in parser, thanks to jasper_dale
