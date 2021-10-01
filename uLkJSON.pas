@@ -1,5 +1,5 @@
 {
-  LkJSON v1.08
+  LkJSON v1.09
 
   06 november 2009
 
@@ -31,6 +31,8 @@
 
   changes:
 
+
+  v1.09 01/10/2021 * add method to getObject field
   v1.08 30/09/2021 * add support to datetime fields by introducing TlkJsonDateTime
   v1.07 06/11/2009 * fixed a bug in js_string - thanks to Andrew G. Khodotov
                    * fixed error with double-slashes - thanks to anonymous user
@@ -324,6 +326,7 @@ type
     function getDouble(idx: Integer): Double; virtual;
     function getDateTime(idx: Integer): TDateTime; virtual;
     function getBoolean(idx: Integer): Boolean; virtual;
+    function getObject(idx: Integer): TlkJSONbase; virtual;
   end;
 
   TlkJSONlist = class(TlkJSONcustomlist)
@@ -493,6 +496,7 @@ type
     function getString(idx: Integer): string; overload; override;
     function getWideString(idx: Integer): WideString; overload; override;
     function getBoolean(idx: Integer): Boolean; overload; override;
+    function getObject(idx: Integer): TlkJSONbase; overload; override;
 
     function {$ifdef TCB_EXT}getDoubleFromName{$else}getDouble{$endif}
       (nm: string): Double; overload;
@@ -506,6 +510,8 @@ type
       (nm: string): WideString; overload;
     function {$ifdef TCB_EXT}getBooleanFromName{$else}getBoolean{$endif}
       (nm: string): Boolean; overload;
+    function {$ifdef TCB_EXT}getObjectFromName{$else}getObject{$endif}
+      (nm: string): TlkJSONbase; overload;
   end;
 
   TlkJSON = class
@@ -1340,6 +1346,15 @@ begin
   else result := jb.Value;
 end;
 
+function TlkJSONcustomlist.getObject(idx: Integer): TlkJSONbase;
+var
+  jb: TlkJSONbase;
+begin
+  jb := Child[idx] as TlkJSONbase;
+  if not assigned(jb) then result := nil
+  else result := jb;
+end;
+
 { TlkJSONobjectmethod }
 
 procedure TlkJSONobjectmethod.AfterConstruction;
@@ -1742,6 +1757,16 @@ begin
   else result := VarToWideStr(js.Value);
 end;
 
+function TlkJSONobject.getObject(idx: Integer): TlkJSONbase;
+var
+  js: TlkJsonObject;
+begin
+  js := FieldByIndex[idx] as TlkJsonObject;
+  if not assigned(js) then result := nil
+  else result := js;
+end;
+
+
 {$ifdef TCB_EXT}
 function TlkJSONobject.getDoubleFromName(nm: string): Double;
 {$else}
@@ -1804,6 +1829,15 @@ function TlkJSONobject.getBoolean(nm: string): Boolean;
 {$endif}
 begin
   result := getBoolean(IndexOfName(nm));
+end;
+
+{$ifdef TCB_EXT}
+function TlkJSONobject.getObjectFromName(nm: string): TlkJSONbase;
+{$else}
+function TlkJSONobject.getObject(nm: string): TlkJSONbase;
+{$endif}
+begin
+  result := getObject(IndexOfName(nm));
 end;
 
 { TlkJSON }
