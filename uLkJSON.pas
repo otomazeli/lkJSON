@@ -87,14 +87,14 @@
                    * started a large work for making source code self-doc
                      (not autodoc!)
   v0.99 10/05/2007 + add functions to list and object:
-                      function getInt(idx: Integer): Integer;
+                      function getInteger(idx: Integer): Integer;
                       function getString(idx: Integer): String;
                       function getWideString(idx: Integer):WideString;
                       function getDouble(idx: Integer): Double;
                       function getBoolean(idx: Integer): Boolean;
                    + add overloaded functions to object:
                       function getDouble(nm: String): Double; overload;
-                      function getInt(nm: String): Integer; overload;
+                      function getInteger(nm: String): Integer; overload;
                       function getString(nm: String): String; overload;
                       function getWideString(nm: String): WideString; overload;
                       function getBoolean(nm: String): Boolean; overload;
@@ -320,7 +320,7 @@ type
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
 
-    function getInt(idx: Integer): Integer; virtual;
+    function getInteger(idx: Integer): Integer; virtual;
     function getString(idx: Integer): string; virtual;
     function getWideString(idx: Integer): WideString; virtual;
     function getDouble(idx: Integer): Double; virtual;
@@ -492,7 +492,7 @@ type
 
     function getDouble(idx: Integer): Double; overload; override;
     function getDateTime(idx: Integer): TDateTime; overload; override;
-    function getInt(idx: Integer): Integer; overload; override;
+    function getInteger(idx: Integer): Integer; overload; override;
     function getString(idx: Integer): string; overload; override;
     function getWideString(idx: Integer): WideString; overload; override;
     function getBoolean(idx: Integer): Boolean; overload; override;
@@ -502,7 +502,7 @@ type
       (nm: string): Double; overload;
     function {$ifdef TCB_EXT}getDateTimeFromName{$else}getDateTime{$endif}
       (nm: string): TDateTime; overload;
-    function {$ifdef TCB_EXT}getIntFromName{$else}getInt{$endif}
+    function {$ifdef TCB_EXT}getIntegerFromName{$else}getInteger{$endif}
       (nm: string): Integer; overload;
     function {$ifdef TCB_EXT}getStringFromName{$else}getString{$endif}
       (nm: string): string; overload;
@@ -1310,7 +1310,7 @@ begin
 end;
 
 
-function TlkJSONcustomlist.getInt(idx: Integer): Integer;
+function TlkJSONcustomlist.getInteger(idx: Integer): Integer;
 var
   jn: TlkJSONnumber;
 begin
@@ -1730,7 +1730,7 @@ begin
 end;
 
 
-function TlkJSONobject.getInt(idx: Integer): Integer;
+function TlkJSONobject.getInteger(idx: Integer): Integer;
 var
   jn: TlkJSONnumber;
 begin
@@ -1787,12 +1787,12 @@ end;
 
 
 {$ifdef TCB_EXT}
-function TlkJSONobject.getIntFromName(nm: string): Integer;
+function TlkJSONobject.getIntegerFromName(nm: string): Integer;
 {$else}
-function TlkJSONobject.getInt(nm: string): Integer;
+function TlkJSONobject.getInteger(nm: string): Integer;
 {$endif}
 begin
-  result := getInt(IndexOfName(nm));
+  result := getInteger(IndexOfName(nm));
 end;
 
 {$ifdef TCB_EXT}

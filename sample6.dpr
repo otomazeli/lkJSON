@@ -103,6 +103,7 @@ begin
 
   jo := vJsonObj.Field['myObj'] as TlkJsonObject;
   o := jo.Field['mystats'] as TlkJsonObject;
+  writeln(TLkJson.GenerateText(vJsonObj.getObject('mystats')));
   dt := o.getDateTime('today'); //Field['today'] as TlkJsonDateTime;
   si := DateTimeToStr(dt);
   writeln(si);
