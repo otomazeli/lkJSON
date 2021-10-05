@@ -343,7 +343,14 @@ type
 
     procedure Delete(idx: Integer);
     function IndexOf(obj: TlkJSONbase): Integer;
-    class function Generate: TlkJSONlist;
+    class function Generate: TlkJSONlist; overload;
+    class function Generate(stringList:TStringList): TlkJSONList; overload;
+    class function Generate(arrayOf: array of String): TlkJSONList; overload;
+    class function Generate(arrayOf: array of Boolean): TlkJSONList; overload;
+    class function Generate(arrayOf: array of Integer): TlkJSONList; overload;
+    class function Generate(arrayOf: array of Double): TlkJSONList; overload;
+    class function Generate(arrayOf: array of WideString): TlkJSONList; overload;
+    class function Generate(arrayOf: array of TDateTime): TlkJSONList; overload;
     class function SelfType: TlkJSONtypes; override;
     class function SelfTypeName: string; override;
   end;
@@ -951,7 +958,11 @@ begin
       LFractionalSecondString := GetNextDTComp(P, PE, '0', SMilSecSeparator, True, False, InvTime, TimeString, 18);
       if LFractionalSecondString <> '0' then
       begin
+       {$IFDEF HAVE_FORMATSETTING}
+        LFractionalSecondString := FormatSettings.DecimalSeparator + LFractionalSecondString;
+       {$ELSE}
         LFractionalSecondString := DecimalSeparator + LFractionalSecondString;
+       {$ENDIF}
         LFraction := StrToFloat(LFractionalSecondString);
         AMillisecond := Round(1000 * LFraction);
       end;
@@ -964,7 +975,11 @@ begin
       LFractionalSecondString := GetNextDTComp(P, PE, '0', SMilSecSeparator, True, False, InvTime, TimeString, 18);
       if LFractionalSecondString <> '0' then
       begin
+       {$IFDEF HAVE_FORMATSETTING}
+        LFractionalSecondString := FormatSettings.DecimalSeparator + LFractionalSecondString;
+       {$ELSE}
         LFractionalSecondString := DecimalSeparator + LFractionalSecondString;
+       {$ENDIF}
         LFraction := StrToFloat(LFractionalSecondString);
         AMillisecond := Round(1000 * LFraction);
       end;
@@ -1429,6 +1444,86 @@ end;
 procedure TlkJSONlist.Delete(idx: Integer);
 begin
   _Delete(idx);
+end;
+
+class function TlkJSONlist.Generate(stringList: TStringList): TlkJSONList;
+var
+ idx:integer;
+ item:TLkJsonObject;
+begin
+  result := Generate;
+  for idx:=0 to stringList.count-1 do
+  begin
+    item := TlkJsonObject.Create();
+    item.Add(stringList.KeyNames[idx], stringList.ValueFromIndex[idx]);
+    result.Add(item);
+  end;
+end;
+
+class function TlkJSONlist.Generate(arrayOf: array of String): TlkJSONList;
+var
+ idx:integer;
+begin
+  result := Generate;
+  for idx:=0 to High(arrayOf) do
+  begin
+    result.Add(arrayOf[idx]);
+  end;
+end;
+
+class function TlkJSONlist.Generate(arrayOf: array of Boolean): TlkJSONList;
+var
+ idx:integer;
+begin
+  result := Generate;
+  for idx:=0 to High(arrayOf) do
+  begin
+    result.Add(arrayOf[idx]);
+  end;
+end;
+
+class function TlkJSONlist.Generate(arrayOf: array of Integer): TlkJSONList;
+var
+ idx:integer;
+begin
+  result := Generate;
+  for idx:=0 to High(arrayOf) do
+  begin
+    result.Add(arrayOf[idx]);
+  end;
+end;
+
+class function TlkJSONlist.Generate(arrayOf: array of Double): TlkJSONList;
+var
+ idx:integer;
+begin
+  result := Generate;
+  for idx:=0 to High(arrayOf) do
+  begin
+    result.Add(arrayOf[idx]);
+  end;
+end;
+
+class function TlkJSONlist.Generate(arrayOf: array of WideString): TlkJSONList;
+var
+ idx:integer;
+begin
+  result := Generate;
+  for idx:=0 to High(arrayOf) do
+  begin
+    result.Add(arrayOf[idx]);
+  end;
+end;
+
+class function TlkJSONlist.Generate(arrayOf: array of TDateTime): TlkJSONList;
+var
+ idx:integer;
+begin
+  result := Generate;
+  for idx:=0 to High(arrayOf) do
+  begin
+    result.Add(arrayOf[idx]);
+  end;
 end;
 
 class function TlkJSONlist.Generate: TlkJSONlist;

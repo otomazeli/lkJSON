@@ -16,6 +16,7 @@ var
   ws: TlkJSONstring;
   i: Integer;
   dt,di:TDateTime;
+  sl:TStringList;
 begin
   js := TlkJSONobject.Create;
   jo := TlkJSONobject.Create;
@@ -61,6 +62,11 @@ begin
 
   js.Add('arrayOf',vJsonArr);
 
+  sl := TStringList.Create;
+  sl.Values['@Value1'] := 'Test1';
+  sl.Values['@Value2'] := 'Test2';
+  sl.Values['@Value3'] := 'Test3';
+  js.Add('stringList', TLkJsonList.Generate(sl));
   str := TlkJSON.GenerateText(js);
 
   TlkJSONstreamed.SaveToFile(js as TlkJsonObject,'source2.json');
@@ -95,6 +101,8 @@ begin
 //  s := js.getString('namestring');
 //  writeln(s);
 
+  vJsonArr := vJsonObj.Field['stringList'] as TlkJsonList;
+  str := TlkJson.GenerateText(vJsonArr);
   jo := vJsonObj.Field['myObj'] as TlkJsonObject;
   o := jo.Field['mystats'] as TlkJsonObject;
   di := o.getDateTime('birthdate');
