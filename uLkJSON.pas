@@ -320,20 +320,34 @@ type
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
 
-    function getInteger(idx: Integer): Integer; virtual;
-    function getString(idx: Integer): string; virtual;
-    function getWideString(idx: Integer): WideString; virtual;
-    function getDouble(idx: Integer): Double; virtual;
-    function getDateTime(idx: Integer): TDateTime; virtual;
-    function getBoolean(idx: Integer): Boolean; virtual;
-    function getObject(idx: Integer): TlkJSONbase; virtual;
+    function getInteger(idx: Integer): Integer; overload; virtual;
+    function getInteger(name: String): Integer; overload; virtual;
+
+    function getString(idx: Integer): string; overload; virtual;
+    function getString(name: String): string; overload; virtual;
+
+    function getWideString(idx: Integer): WideString; overload; virtual;
+    function getWideString(name: String): WideString; overload; virtual;
+
+    function getDouble(idx: Integer): Double; overload; virtual;
+    function getDouble(name: String): Double; overload; virtual;
+
+    function getDateTime(idx: Integer): TDateTime; overload; virtual;
+    function getDateTime(name: String): TDateTime; overload; virtual;
+
+    function getBoolean(idx: Integer): Boolean; overload; virtual;
+    function getBoolean(name: String): Boolean; overload; virtual;
+
+    function getObject(idx: Integer): TlkJSONbase; overload; virtual;
+    function getObject(name: String): TlkJSONbase; overload; virtual;
+
+    function getList(idx: Integer): TlkJSONcustomlist; overload; virtual;
+    function getList(name: String): TlkJSONcustomlist; overload; virtual;
   end;
 
   TlkJSONlist = class(TlkJSONcustomlist)
-  protected
   public
     function Add(obj: TlkJSONbase): Integer; overload;
-
     function Add(aboolean: Boolean): Integer; overload;
     function Add(nmb: double): Integer; overload;
     function Add(dt: TDateTime): Integer; overload;
@@ -343,6 +357,7 @@ type
 
     procedure Delete(idx: Integer);
     function IndexOf(obj: TlkJSONbase): Integer;
+    function get(aname: String): TlkJSONbase;
     class function Generate: TlkJSONlist; overload;
     class function Generate(stringList:TStringList): TlkJSONList; overload;
     class function Generate(arrayOf: array of String): TlkJSONList; overload;
@@ -353,6 +368,7 @@ type
     class function Generate(arrayOf: array of TDateTime): TlkJSONList; overload;
     class function SelfType: TlkJSONtypes; override;
     class function SelfTypeName: string; override;
+
   end;
 
   TlkJSONobjectmethod = class(TlkJSONbase)
@@ -504,6 +520,7 @@ type
     function getWideString(idx: Integer): WideString; overload; override;
     function getBoolean(idx: Integer): Boolean; overload; override;
     function getObject(idx: Integer): TlkJSONbase; overload; override;
+    function getList(idx: Integer): TlkJSONcustomlist; overload; override;
 
     function {$ifdef TCB_EXT}getDoubleFromName{$else}getDouble{$endif}
       (nm: string): Double; overload;
@@ -519,6 +536,9 @@ type
       (nm: string): Boolean; overload;
     function {$ifdef TCB_EXT}getObjectFromName{$else}getObject{$endif}
       (nm: string): TlkJSONbase; overload;
+    function {$ifdef TCB_EXT}getListFromName{$else}getList{$endif}
+      (nm: string): TlkJSONcustomlist; overload;
+
   end;
 
   TlkJSON = class
@@ -1287,6 +1307,8 @@ end;
 function TlkJSONcustomlist.GetField(AName: Variant):TlkJSONbase;
 var
   index: Integer;
+  obj:TlkJsonObject;
+  strName:String;
 begin
   if VarIsNumeric(AName) then
     begin
@@ -1295,6 +1317,15 @@ begin
     end
   else
     begin
+      for index := 0 to fList.Count-1 do
+      begin
+         obj := fList[index];
+         if assigned(TLkJsonObject(obj).Field[AName]) then
+         begin
+            result := obj;
+            exit;
+         end;
+      end;
       result := inherited GetField(AName);
     end;
 end;
@@ -1315,6 +1346,16 @@ begin
   else result := jn.Value;
 end;
 
+function TlkJSONcustomlist.getDouble(name: String): Double;
+var
+  js: TlkJSONObject;
+begin
+  js := GetField(name) as TlkJSONObject;
+  if not assigned(js) then result := 0
+  else result := js.getDouble(name);
+end;
+
+
 function TlkJSONcustomlist.getDateTime(idx: Integer): TDateTime;
 var
   jn: TlkJsonDateTime;
@@ -1322,6 +1363,15 @@ begin
   jn := Child[idx] as TlkJsonDateTime;
   if not assigned(jn) then result := 0.5
   else result := jn.Value;
+end;
+
+function TlkJSONcustomlist.getDateTime(name: String): TDateTime;
+var
+  js: TlkJSONObject;
+begin
+  js := GetField(name) as TlkJSONObject;
+  if not assigned(js) then result := 0.5
+  else result := js.getDateTime(name);
 end;
 
 
@@ -1334,6 +1384,16 @@ begin
   else result := round(int(jn.Value));
 end;
 
+function TlkJSONcustomlist.getInteger(name: String): Integer;
+var
+  js: TlkJSONObject;
+begin
+  js := GetField(name) as TlkJSONObject;
+  if not assigned(js) then result := 0
+  else result := js.getInteger(name);
+end;
+
+
 function TlkJSONcustomlist.getString(idx: Integer): string;
 var
   js: TlkJSONstring;
@@ -1342,6 +1402,16 @@ begin
   if not assigned(js) then result := ''
   else result := VarToStr(js.Value);
 end;
+
+function TlkJSONcustomlist.getString(name: String): string;
+var
+  js: TlkJSONObject;
+begin
+  js := GetField(name) as TlkJSONObject;
+  if not assigned(js) then result := ''
+  else result := js.getString(name);
+end;
+
 
 function TlkJSONcustomlist.getWideString(idx: Integer): WideString;
 var
@@ -1352,6 +1422,16 @@ begin
   else result := VarToWideStr(js.Value);
 end;
 
+function TlkJSONcustomlist.getWideString(name: String): WideString;
+var
+  js: TlkJSONObject;
+begin
+  js := GetField(name) as TlkJSONObject;
+  if not assigned(js) then result := ''
+  else result := js.getWideString(name);
+end;
+
+
 function TlkJSONcustomlist.getBoolean(idx: Integer): Boolean;
 var
   jb: TlkJSONboolean;
@@ -1361,6 +1441,16 @@ begin
   else result := jb.Value;
 end;
 
+function TlkJSONcustomlist.getBoolean(name: String): Boolean;
+var
+  js: TlkJSONObject;
+begin
+  js := GetField(name) as TlkJSONObject;
+  if not assigned(js) then result := false
+  else result := js.getBoolean(name);
+end;
+
+
 function TlkJSONcustomlist.getObject(idx: Integer): TlkJSONbase;
 var
   jb: TlkJSONbase;
@@ -1369,6 +1459,30 @@ begin
   if not assigned(jb) then result := nil
   else result := jb;
 end;
+
+function TlkJSONcustomlist.getObject(name: String): TlkJSONbase;
+var
+  jb: TlkJSONbase;
+begin
+  jb := GetField(name) as TlkJSONbase;
+  if not assigned(jb) then result := nil
+  else result := jb;
+end;
+
+function TlkJSONcustomlist.getList(idx: Integer): TlkJSONcustomlist;
+begin
+  result := getObject(idx) as TlkJSONcustomlist;
+end;
+
+function TlkJSONcustomlist.getList(name: String): TlkJSONcustomlist;
+var
+  jl: TlkJSONcustomlist;
+begin
+  jl := GetField(name) as TlkJSONcustomlist;
+  if not assigned(jl) then result := nil
+  else result := jl;
+end;
+
 
 { TlkJSONobjectmethod }
 
@@ -1524,6 +1638,11 @@ begin
   begin
     result.Add(arrayOf[idx]);
   end;
+end;
+
+function TlkJSONlist.get(aname: String): TlkJSONbase;
+begin
+  result := Self.GetField(aname);
 end;
 
 class function TlkJSONlist.Generate: TlkJSONlist;
@@ -1861,6 +1980,23 @@ begin
   else result := js;
 end;
 
+function TlkJSONobject.getList(idx: Integer): TlkJSONcustomlist;
+var
+  js: TlkJsonList;
+begin
+  js := FieldByIndex[idx] as TlkJsonList;
+  if not assigned(js) then result := nil
+  else result := js;
+end;
+
+function TlkJSONobject.getBoolean(idx: Integer): Boolean;
+var
+  jb: TlkJSONboolean;
+begin
+  jb := FieldByIndex[idx] as TlkJSONboolean;
+  if not assigned(jb) then result := false
+  else result := jb.Value;
+end;
 
 {$ifdef TCB_EXT}
 function TlkJSONobject.getDoubleFromName(nm: string): Double;
@@ -1908,15 +2044,6 @@ begin
   result := getWideString(IndexOfName(nm));
 end;
 
-function TlkJSONobject.getBoolean(idx: Integer): Boolean;
-var
-  jb: TlkJSONboolean;
-begin
-  jb := FieldByIndex[idx] as TlkJSONboolean;
-  if not assigned(jb) then result := false
-  else result := jb.Value;
-end;
-
 {$ifdef TCB_EXT}
 function TlkJSONobject.getBooleanFromName(nm: string): Boolean;
 {$else}
@@ -1933,6 +2060,15 @@ function TlkJSONobject.getObject(nm: string): TlkJSONbase;
 {$endif}
 begin
   result := getObject(IndexOfName(nm));
+end;
+
+{$ifdef TCB_EXT}
+function TlkJSONobject.getListFromName(nm: string): TlkJSONcustomlist;
+{$else}
+function TlkJSONobject.getList(nm: string): TlkJSONcustomlist;
+{$endif}
+begin
+  result := getList(IndexOfName(nm));
 end;
 
 { TlkJSON }

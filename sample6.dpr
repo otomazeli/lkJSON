@@ -13,7 +13,8 @@ var
   vJsonStr,str,si: String;
   vJsonArr:TlkJsonlist;
   js,jo,o,s,x:TlkJSONobject;
-  ws: TlkJSONstring;
+  ws,v1: TlkJSONstring;
+  b1:TlkJsonbase;
   i: Integer;
   dt,di:TDateTime;
   sl:TStringList;
@@ -103,6 +104,13 @@ begin
 
   vJsonArr := vJsonObj.Field['stringList'] as TlkJsonList;
   str := TlkJson.GenerateText(vJsonArr);
+
+  vJsonArr := TlkJsonList(vJsonObj.getList('stringList'));
+  str := TlkJson.GenerateText(vJsonArr);
+//  b1 := TlkJsonList(vJsonObj.getList('stringList')).get('@Value1') ;
+  str := vJsonObj.getList('stringList').getString('@Value1');
+
+  str := vJsonObj.getList('arrayOf').getString(3);
   jo := vJsonObj.Field['myObj'] as TlkJsonObject;
   o := jo.Field['mystats'] as TlkJsonObject;
   di := o.getDateTime('birthdate');
