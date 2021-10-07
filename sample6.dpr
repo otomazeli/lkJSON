@@ -101,6 +101,12 @@ begin
 // syntax of 0.99+
 //  s := js.getString('namestring');
 //  writeln(s);
+  writeln(TLkJsonObject(vJsonObj.getObject('c')).Key[0]);
+  writeln(TLkJsonObject(vJsonObj.getObject('c')).getString(0));
+  writeln(TLkJsonObject(vJsonObj.getObject('c')).Key[1]);
+  writeln(TLkJsonObject(vJsonObj.getObject('c')).getString(1));
+  writeln(TLkJsonObject(vJsonObj.getObject('c')).Key[2]);
+  writeln(TLkJsonObject(vJsonObj.getObject('c')).getString(2));
 
   vJsonArr := vJsonObj.Field['stringList'] as TlkJsonList;
   str := TlkJson.GenerateText(vJsonArr);

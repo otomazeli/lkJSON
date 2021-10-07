@@ -492,8 +492,7 @@ type
     function Add(const aname: WideString; nmb: double): Integer; overload;
     function Add(const aname: WideString; dt: TDateTime): Integer; overload;
     function Add(const aname: WideString; s: string): Integer; overload;
-    function Add(const aname: WideString; const ws: WideString): Integer;
-      overload;
+    function Add(const aname: WideString; const ws: WideString): Integer; overload;
     function Add(const aname: WideString; inmb: Integer): Integer; overload;
 
     procedure Delete(idx: Integer);
@@ -511,7 +510,8 @@ type
 
     property FieldByIndex[idx: Integer]: TlkJSONbase read GetFieldByIndex
     write SetFieldByIndex;
-    property NameOf[idx: Integer]: WideString read GetNameOf;
+    //property NameOf[idx: Integer]: WideString read GetNameOf;
+    property Key[idx: Integer]: WideString read GetNameOf;
 
     function getDouble(idx: Integer): Double; overload; override;
     function getDateTime(idx: Integer): TDateTime; overload; override;
@@ -978,7 +978,7 @@ begin
       LFractionalSecondString := GetNextDTComp(P, PE, '0', SMilSecSeparator, True, False, InvTime, TimeString, 18);
       if LFractionalSecondString <> '0' then
       begin
-       {$IFDEF HAVE_FORMATSETTING}
+       {$IFDEF USE_D2009}
         LFractionalSecondString := FormatSettings.DecimalSeparator + LFractionalSecondString;
        {$ELSE}
         LFractionalSecondString := DecimalSeparator + LFractionalSecondString;
@@ -995,7 +995,7 @@ begin
       LFractionalSecondString := GetNextDTComp(P, PE, '0', SMilSecSeparator, True, False, InvTime, TimeString, 18);
       if LFractionalSecondString <> '0' then
       begin
-       {$IFDEF HAVE_FORMATSETTING}
+       {$IFDEF USE_D2009}
         LFractionalSecondString := FormatSettings.DecimalSeparator + LFractionalSecondString;
        {$ELSE}
         LFractionalSecondString := DecimalSeparator + LFractionalSecondString;
@@ -1614,7 +1614,7 @@ begin
   result := Generate;
   for idx:=0 to High(arrayOf) do
   begin
-    result.Add(arrayOf[idx]);
+    result.Add(TlkJSONnumber.Generate(arrayOf[idx]));
   end;
 end;
 
@@ -1636,7 +1636,7 @@ begin
   result := Generate;
   for idx:=0 to High(arrayOf) do
   begin
-    result.Add(arrayOf[idx]);
+    result.Add(TlkJSonDateTime.Generate(arrayOf[idx]));
   end;
 end;
 
