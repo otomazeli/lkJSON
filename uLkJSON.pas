@@ -1572,7 +1572,7 @@ begin
     {$IFDEF USE_D2009}
       item.Add(stringList.KeyNames[idx], stringList.ValueFromIndex[idx]);
     {$ELSE}
-      item.Add(stringList.Key[idx], stringList.ValueFromIndex[idx]);
+      item.Add(stringList.Names[idx], stringList.ValueFromIndex[idx]);
     {$ENDIF}
     result.Add(item);
   end;
