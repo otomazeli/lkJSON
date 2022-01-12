@@ -1569,7 +1569,11 @@ begin
   for idx:=0 to stringList.count-1 do
   begin
     item := TlkJsonObject.Create();
-    item.Add(stringList.KeyNames[idx], stringList.ValueFromIndex[idx]);
+    {$IFDEF USE_D2009}
+      item.Add(stringList.KeyNames[idx], stringList.ValueFromIndex[idx]);
+    {$ELSE}
+      item.Add(stringList.Key[idx], stringList.ValueFromIndex[idx]);
+    {$ENDIF}
     result.Add(item);
   end;
 end;
